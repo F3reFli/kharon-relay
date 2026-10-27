@@ -5,6 +5,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 import '@fontsource/vt323/400.css';
 import './styles/main.css';
+import './styles/events.css';
 
 import { AudioEngine } from './audio/audio';
 import { TICK_SECONDS } from './core/constants';

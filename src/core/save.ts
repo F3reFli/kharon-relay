@@ -5,11 +5,12 @@
 
 import { z } from 'zod';
 import { MAX_CODE_LENGTH } from './asm/parser';
-import { DEBUG_BOOST_MULT, SAVE_VERSION } from './constants';
+import { DEBUG_BOOST_MULT, FIRST_EVENT_AT, SAVE_VERSION } from './constants';
 import { MODULE_IDS } from './data/modules';
 import { computeModifiers, moduleRates, productionRates, type Modifiers } from './modifiers';
 import { add, EMPTY_RESOURCES, scale } from './resources';
 import { EMPTY_MODULE, EMPTY_STATS, createInitialState } from './state';
+import { expireOpenEvent } from './stationEvents';
 import type { GameState, ModuleId, Resources } from './types';
 
 const EXPORT_PREFIX = 'KHARON1:';
@@ -32,6 +33,30 @@ function boundedRecord<T extends z.ZodType>(value: T) {
 const resourcesSchema = z.object({ energy: nonNeg, alloy: nonNeg, data: nonNeg, cores: nonNeg });
 
 const moduleIdSchema = z.enum(MODULE_IDS as [ModuleId, ...ModuleId[]]);
+
+const buffTargetSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('global') }),
+  z.object({ kind: z.literal('click') }),
+  z.object({ kind: z.literal('module'), module: moduleIdSchema }),
+  z.object({ kind: z.literal('resource'), resource: z.enum(['energy', 'alloy', 'data', 'cores']) }),
+]);
+
+/** Aucun événement ne dure plus longtemps : au-delà, la sauvegarde a été forgée. */
+const MAX_EVENT_SECONDS = 600;
+
+const activeEventSchema = z
+  .object({
+    id,
+    serial: z.number().int(),
+    startedAt: nonNeg,
+    expiresAt: nonNeg,
+    progress: z.number().int().min(0).max(1_000_000),
+    seed: z.number().int(),
+  })
+  .refine(
+    (e) => e.expiresAt >= e.startedAt && e.expiresAt - e.startedAt <= MAX_EVENT_SECONDS,
+    "durée d'événement invalide",
+  );
 
 const incidentSchema = z.object({
   ticket: z.number().int(),
@@ -97,6 +122,7 @@ export const saveSchema = z.object({
         label: z.string().max(80),
         mult: z.number().min(0).max(1000),
         until: z.number(),
+        target: buffTargetSchema.optional(),
       }),
     )
     .max(20)
@@ -112,6 +138,9 @@ export const saveSchema = z.object({
     .default(null),
   nextAnomalyAt: z.number().default(100),
   nextIncidentAt: z.number().default(75),
+  event: activeEventSchema.nullable().default(null),
+  nextEventAt: z.number().default(FIRST_EVENT_AT),
+  lastEventId: id.nullable().default(null),
   nextTicket: z.number().int().default(4471),
   rng: z.number().int(),
 });
@@ -204,7 +233,9 @@ function temporaryGains(
   seconds: number,
 ): Resources {
   const base = productionRates(baseline, mods);
-  const fromBuffs = state.buffs.reduce<Resources>((acc, b) => {
+  // Seuls les bonus globaux s'estiment simplement ; les bonus ciblés sont ignorés hors-ligne.
+  const globalBuffs = state.buffs.filter((b) => (b.target?.kind ?? 'global') === 'global');
+  const fromBuffs = globalBuffs.reduce<Resources>((acc, b) => {
     const span = Math.min(seconds, Math.max(0, b.until - state.time));
     return add(acc, scale(base, (b.mult - 1) * span));
   }, EMPTY_RESOURCES);
@@ -222,6 +253,14 @@ export function applyOffline(
 ): { state: GameState; report: OfflineReport | null } {
   const elapsed = (now - state.lastSavedAt) / 1000;
   if (!Number.isFinite(elapsed) || elapsed < 10) return { state, report: null };
+  return offlineFrom(expireOpenEvent(state), now, elapsed);
+}
+
+function offlineFrom(
+  state: GameState,
+  now: number,
+  elapsed: number,
+): { state: GameState; report: OfflineReport | null } {
   const mods = computeModifiers(state);
   const simulated = Math.min(elapsed, mods.offlineHours * 3600);
   const baseline = offlineBaseline(state, mods);
@@ -248,8 +287,10 @@ export function applyOffline(
     run: add(state.run, gains),
     buffs: state.buffs.filter((b) => b.until > time),
     anomaly: null,
+    event: null,
     nextIncidentAt: Math.max(state.nextIncidentAt, time + 30),
     nextAnomalyAt: Math.max(state.nextAnomalyAt, time + 30),
+    nextEventAt: Math.max(state.nextEventAt, time + 60),
   };
   return { state: next, report: { elapsed, simulated, rate: mods.offlineRate, gains } };
 }

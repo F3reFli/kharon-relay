@@ -14,12 +14,13 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { isModuleId } from '../core/data/modules';
-import type { GameEvent, GameState } from '../core/types';
+import type { GameEvent, GameState, ModuleId } from '../core/types';
 import type { Settings } from '../game/settings';
 import { AnomalyPacket } from './anomaly';
 import { loadModels, mergedGeometry } from './assets';
 import { Background, PLANET_POSITION, SUN_DIRECTION } from './background';
 import { Effects } from './effects';
+import { EventFx } from './eventFx';
 import { PostFx } from './postfx';
 import { Station } from './station/station';
 
@@ -28,6 +29,17 @@ export interface EngineCallbacks {
   readonly onAnomalyClick: (x: number, y: number) => void;
   readonly onContextLost: () => void;
 }
+
+/** Zone de l'écran non couverte par l'interface, en pixels CSS relatifs au canevas. */
+export interface SafeArea {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+/** Demi-hauteur (unités monde) à faire tenir dans la zone libre au premier cadrage. */
+const FRAME_RADIUS = 10.5;
 
 const QUALITY = {
   low: { stars: 2500, debris: 90, maxPixelRatio: 1 },
@@ -45,6 +57,9 @@ export class Engine {
   private readonly station = new Station();
   private readonly effects = new Effects();
   private readonly anomaly = new AnomalyPacket();
+  private readonly eventFx = new EventFx();
+  private readonly sunLight = new DirectionalLight(0xfff0dd, 2.6);
+  private readonly ambient = new AmbientLight(0x3a4a6a, 0.6);
   private readonly raycaster = new Raycaster();
   private readonly pointer = new Vector2();
   private readonly timer = new Timer();
@@ -56,6 +71,8 @@ export class Engine {
   private downAt: { x: number; y: number; t: number } | null = null;
   private lastInteraction = 0;
   private hoverDirty = false;
+  private safe: SafeArea | null = null;
+  private framed = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -81,6 +98,7 @@ export class Engine {
       this.station.group,
       this.effects.group,
       this.anomaly.group,
+      this.eventFx.group,
     );
     this.addLights();
     this.postfx = new PostFx(this.renderer, this.scene, this.camera);
@@ -102,17 +120,17 @@ export class Engine {
     c.zoomSpeed = 0.7;
     c.autoRotate = true;
     c.autoRotateSpeed = 0.25;
-    c.target.set(0, 0.5, 0);
+    c.target.set(0, 2, 0);
   }
 
   private addLights(): void {
-    const sun = new DirectionalLight(0xfff0dd, 2.6);
+    const sun = this.sunLight;
     sun.position.copy(SUN_DIRECTION).multiplyScalar(100);
     const bounce = new DirectionalLight(0xff9a60, 0.7);
     bounce.position.copy(PLANET_POSITION).normalize().multiplyScalar(100);
     const fill = new DirectionalLight(0x7fa8d8, 0.9);
     fill.position.set(60, 30, 80);
-    this.scene.add(sun, bounce, fill, new AmbientLight(0x3a4a6a, 0.6));
+    this.scene.add(sun, bounce, fill, this.ambient);
   }
 
   /** L'atlas ASCII est dessiné avec JetBrains Mono : on le redessine quand la police est prête. */
@@ -212,6 +230,53 @@ export class Engine {
     this.postfx.setSize(w, h, pr);
     this.background.setPixelRatio(pr);
     this.effects.setPixelRatio(pr);
+    this.applyFraming();
+  }
+
+  /** Recentre la projection sur la zone libre entre les panneaux. */
+  setSafeArea(area: SafeArea): void {
+    const prev = this.safe;
+    const same =
+      prev !== null &&
+      Math.abs(prev.left - area.left) < 2 &&
+      Math.abs(prev.top - area.top) < 2 &&
+      Math.abs(prev.right - area.right) < 2 &&
+      Math.abs(prev.bottom - area.bottom) < 2;
+    if (same) return;
+    this.safe = area;
+    this.applyFraming();
+  }
+
+  private applyFraming(): void {
+    const w = this.canvas.clientWidth || window.innerWidth;
+    const h = this.canvas.clientHeight || window.innerHeight;
+    const area = this.safe;
+    const sw = area ? area.right - area.left : 0;
+    const sh = area ? area.bottom - area.top : 0;
+    if (!area || sw < w * 0.25 || sh < h * 0.25) {
+      this.camera.clearViewOffset();
+      return;
+    }
+    const cx = (area.left + area.right) / 2;
+    const cy = (area.top + area.bottom) / 2;
+    this.camera.setViewOffset(w, h, w / 2 - cx, h / 2 - cy, w, h);
+    if (this.framed) return;
+    // Premier cadrage : recule la caméra pour que la station tienne dans la zone libre.
+    this.framed = true;
+    const fit = Math.min(sh / h, (sw / w) * this.camera.aspect);
+    const tan = Math.tan((this.camera.fov * Math.PI) / 360);
+    const c = this.controls;
+    const distance = Math.min(c.maxDistance, Math.max(c.minDistance, FRAME_RADIUS / (tan * fit)));
+    const dir = this.camera.position.clone().sub(c.target).normalize();
+    this.camera.position.copy(c.target).addScaledVector(dir, distance);
+  }
+
+  /** Mise en service d'un nouveau sous-système : onde de choc et gerbe sur son emplacement. */
+  celebrate(id: ModuleId): void {
+    const at = this.station.anchorOf(id);
+    this.effects.burst(at, 140, 0x9dffb0, 8, 0.8);
+    this.effects.shockwave(at, this.camera.position.clone().sub(at).normalize(), 0x9dffb0, 7);
+    this.postfx.kick(0.3 * (this.settings.reducedMotion ? 0.3 : 1));
   }
 
   applySettings(settings: Settings): void {
@@ -227,7 +292,33 @@ export class Engine {
     this.gameTime = Math.abs(drift) > 1 ? state.time : this.gameTime + drift * 0.25;
     this.station.sync(state, energyRate);
     this.anomaly.sync(state.anomaly);
+    this.eventFx.sync(state.event);
     this.storm = state.flags.includes('echo-decoded') ? 1 : 0;
+  }
+
+  private handleStationEvent(event: GameEvent, motion: number): void {
+    const core = new Vector3();
+    if (event.type === 'stationEvent') {
+      this.postfx.kick(0.6 * motion);
+      this.shake = Math.max(this.shake, 0.2 * motion);
+      return;
+    }
+    if (event.type !== 'stationEventEnded') return;
+    const salvaged = this.eventFx.ended(event.id, event.result);
+    if (salvaged) {
+      this.effects.burst(salvaged, 160, 0x9fe8ff, 9, 0.8);
+      this.effects.shockwave(
+        salvaged,
+        this.camera.position.clone().sub(salvaged).normalize(),
+        0x9fe8ff,
+        6,
+      );
+    }
+    if (event.result === 'goal') {
+      this.effects.burst(core, 220, 0xffd060, 14, 2);
+      this.effects.shockwave(core, new Vector3(0, 1, 0), 0xffd060, 22);
+      this.postfx.kick(0.5 * motion);
+    }
   }
 
   handleEvent(event: GameEvent): void {
@@ -274,6 +365,10 @@ export class Engine {
         this.postfx.kick(1.5);
         this.effects.shockwave(core, new Vector3(0, 1, 0), 0xffffff, 30);
         break;
+      case 'stationEvent':
+      case 'stationEventEnded':
+        this.handleStationEvent(event, motion);
+        break;
       default:
         break;
     }
@@ -305,7 +400,17 @@ export class Engine {
       .multiplyScalar(this.shake);
     this.camera.position.add(this.shakeOffset);
     this.updateHover();
-    this.background.update(dt, time, this.storm);
+    const mood = this.eventFx.update(dt, time, this.gameTime);
+    this.background.update(dt, time, {
+      storm: Math.max(this.storm, mood.storm),
+      lightning: mood.storm,
+      flare: mood.flare,
+    });
+    this.station.setMood(mood);
+    this.sunLight.intensity = 2.6 * (1 + mood.flare * 0.9);
+    this.ambient.intensity = 0.6 * (1 - mood.blackout * 0.7);
+    if (mood.ghost > 0.5 && Math.random() < dt * 0.5)
+      this.postfx.kick(0.3 * (this.settings.reducedMotion ? 0.3 : 1));
     this.station.update(dt, time);
     this.effects.update(dt);
     this.gameTime += dt;
@@ -314,6 +419,7 @@ export class Engine {
   }
 
   dispose(): void {
+    this.eventFx.dispose();
     this.controls.dispose();
     this.timer.dispose();
     this.postfx.dispose();

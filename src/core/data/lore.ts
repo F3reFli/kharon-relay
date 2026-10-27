@@ -226,6 +226,21 @@ export const LOGS: readonly LogDef[] = [
       'La boucle est fermée. Le relais peut redémarrer. Il redémarrera toujours.',
     ],
   },
+  {
+    id: 'log-f7',
+    file: 'f7_frequence7.log',
+    title: 'Fréquence 7 — transcription',
+    author: 'Cdt. Ilse Varga (?)',
+    date: 'demain',
+    unlock: { kind: 'flag', flag: 'ghost-answered' },
+    decryptCost: 0,
+    body: [
+      "Gardien. Si tu entends ceci, c'est que le relais tient encore.",
+      "Ne cherche pas l'horodatage : ici, demain et hier sont la même fréquence.",
+      'Nous ne pouvons pas te dire ce que tu vas trouver dans la tempête.',
+      "Seulement ceci : chaque fois que tu réponds, l'Écho devient un peu plus net.",
+    ],
+  },
 ];
 
 const LOG_INDEX: ReadonlyMap<string, LogDef> = new Map(LOGS.map((l) => [l.id, l]));

@@ -4,9 +4,10 @@
 
 1. **Noyau pur** (`src/core`). Toute la logique de jeu est faite de fonctions pures sur des données immuables : économie, incidents, assembleur, terminal, sauvegarde. Aucun accès au DOM, à Three.js ou à l'horloge murale. C'est ce qui permet d'atteindre ~98 % de couverture et de rejouer des scénarios de manière déterministe.
 2. **Réducteur unique**. `reduce(state, action) → { state, events }` est le seul point d'entrée qui modifie l'état. L'aléatoire passe par un PRNG (mulberry32) dont l'état est stocké dans la sauvegarde, donc la même séquence d'actions donne toujours le même résultat.
-3. **Événements → retours**. Le noyau ne joue ni son ni animation. Il émet des événements (`click`, `incident`, `puzzleSolved`, `achievement`…) que l'interface traduit en sons, notifications, effets 3D et lignes de terminal (`src/ui/feedback.ts`).
-4. **Le rendu lit, il n'écrit pas**. `Engine.sync(state)` aligne la scène sur l'état, environ 10 fois par seconde. Le rendu ne modifie jamais l'état : un clic sur le cœur remonte un _callback_ qui envoie une action au store.
-5. **Frontières validées**. Tout ce qui vient de l'extérieur est validé par schéma (zod) avant usage : sauvegarde locale, code d'import, réglages, manifest des modèles.
+3. **Événements → retours**. Le noyau ne joue ni son ni animation. Il émet des événements (`click`, `incident`, `puzzleSolved`, `achievement`, `stationEvent`…) que l'interface traduit en sons, notifications, effets 3D et lignes de terminal (`src/ui/feedback.ts`, puis `App.stage` pour les annonces et la carte d'alerte).
+4. **Événements de station** (`core/stationEvents.ts`, contenu dans `core/data/events.ts`). Une étape de la simulation fait apparaître ou expirer l'événement en cours ; l'action `answerEvent` applique une réponse, et chaque impulsion fait avancer un éventuel objectif. Les effets (bonus ciblé, gain indexé sur la production, incident provoqué, drapeau narratif) sont des données, appliquées par une seule fonction pure.
+5. **Le rendu lit, il n'écrit pas**. `Engine.sync(state)` aligne la scène sur l'état, environ 10 fois par seconde. Le rendu ne modifie jamais l'état : un clic sur le cœur remonte un _callback_ qui envoie une action au store.
+6. **Frontières validées**. Tout ce qui vient de l'extérieur est validé par schéma (zod) avant usage : sauvegarde locale, code d'import, réglages, manifest des modèles.
 
 ## Flux
 
@@ -36,6 +37,8 @@ RenderPass ─► UnrealBloomPass ─► OutputPass (tone mapping + sRGB) ─►
   - _ASCII_ : l'écran est découpé en cellules ; la luminance moyenne de chaque cellule choisit un glyphe dans un atlas généré par canvas. Un filtre de Sobel calculé à l'échelle des cellules détecte les contours et les remplace par des glyphes orientés (`| / - \`).
   - _Tramage_ : seuil ordonné de Bayer 8×8, quantifié sur 4 niveaux.
 - **CrtShader** : courbure, lignes de balayage, barre de défilement, aberration chromatique, vignettage, grain, scintillement et déchirures horizontales pilotées par un niveau de _glitch_ que les incidents font monter.
+- **Cadrage** : l'interface mesure la zone laissée libre par les panneaux ; la caméra y recentre sa projection (`setViewOffset`) et recule au premier affichage pour que toute la station y tienne.
+- **Événements** (`render/eventFx.ts`, `eventProps.ts`, `streaks.ts`) : traînées additives en pool (météores, vent solaire, étoiles filantes, pluie spectrale), cargo et épave procéduraux, et « niveaux d'ambiance » (éruption, tempête, coupure, fantôme, résonance) lissés dans le temps, que le moteur applique au soleil, à la planète, au cœur, aux hublots et aux lumières.
 - **Station** (`render/station/`) :
   - géométrie procédurale avec textures de coque générées par canvas ;
   - un visuel par type de module, qui apparaît et se densifie selon le nombre d'unités ;

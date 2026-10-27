@@ -17,7 +17,12 @@ export type Sfx =
   | 'type'
   | 'boot'
   | 'open'
-  | 'reboot';
+  | 'reboot'
+  | 'event'
+  | 'eventEnd'
+  | 'blackout'
+  | 'resonance'
+  | 'online';
 
 interface Volumes {
   readonly masterVolume: number;
@@ -187,6 +192,29 @@ export class AudioEngine {
       this.tone('sawtooth', 800, t, 2, 0.15, 30);
       this.noiseBurst(t, 2, 0.2, 400, 0.5, 'lowpass');
     },
+    event: (t) => {
+      // Ouverture de canal radio : souffle filtré puis double bip montant.
+      this.noiseBurst(t, 0.35, 0.16, 1800, 3);
+      this.arpeggio('square', [880, 1175, 880, 1175], t + 0.3, 0.11, 0.09, 0.06);
+      this.tone('sine', 220, t + 0.3, 0.5, 0.12, 440);
+    },
+    eventEnd: (t) => {
+      this.arpeggio('sine', [784, 1046], t, 0.09, 0.35, 0.12);
+      this.noiseBurst(t + 0.1, 0.25, 0.05, 2500, 2);
+    },
+    blackout: (t) => {
+      this.tone('sawtooth', 320, t, 1.4, 0.18, 28);
+      this.tone('sine', 90, t, 1.2, 0.3, 30);
+      this.noiseBurst(t, 0.12, 0.25, 900, 1);
+    },
+    resonance: (t) => {
+      this.arpeggio('triangle', [523, 659, 784, 1046, 1318, 1568], t, 0.06, 0.6, 0.1);
+      this.tone('sine', 130, t, 1.2, 0.25, 260);
+    },
+    online: (t) => {
+      this.tone('sine', 110, t, 0.8, 0.3, 220);
+      this.arpeggio('triangle', [440, 554, 659, 880], t + 0.15, 0.07, 0.4, 0.12);
+    },
   };
 
   private arpeggio(
@@ -200,9 +228,10 @@ export class AudioEngine {
     freqs.forEach((f, i) => this.tone(type, f, start + i * step, duration, gain));
   }
 
-  play(name: Sfx): void {
+  /** Joue un effet ; `pitch` transpose les recettes qui en tiennent compte (impulsions). */
+  play(name: Sfx, pitch = 1): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
-    this.recipes[name](this.ctx.currentTime, 1 + (Math.random() - 0.5) * 0.08);
+    this.recipes[name](this.ctx.currentTime, pitch * (1 + (Math.random() - 0.5) * 0.08));
   }
 
   private startAmbient(): void {

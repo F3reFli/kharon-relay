@@ -129,11 +129,94 @@ export interface Anomaly {
   readonly seed: number;
 }
 
+/** Portée d'un bonus temporaire. */
+export type BuffTarget =
+  | { readonly kind: 'global' }
+  | { readonly kind: 'click' }
+  | { readonly kind: 'module'; readonly module: ModuleId }
+  | { readonly kind: 'resource'; readonly resource: ResourceId };
+
 export interface Buff {
   readonly id: string;
   readonly label: string;
   readonly mult: number;
   readonly until: number;
+  /** Portée du bonus ; absente = toute la production (sauvegardes antérieures à la v0.2). */
+  readonly target?: BuffTarget | undefined;
+}
+
+/** Montant exprimé en secondes de production actuelle, avec un plancher garanti. */
+export interface ScaledAmount {
+  readonly resource: Exclude<ResourceId, 'cores'>;
+  readonly seconds: number;
+  readonly min: number;
+}
+
+export type EventEffect =
+  | {
+      readonly kind: 'buff';
+      readonly id: string;
+      readonly label: string;
+      readonly mult: number;
+      readonly seconds: number;
+      readonly target: BuffTarget;
+    }
+  | { readonly kind: 'clearBuff'; readonly id: string }
+  | { readonly kind: 'grant'; readonly amount: ScaledAmount }
+  | { readonly kind: 'incident'; readonly chance: number }
+  | { readonly kind: 'flag'; readonly flag: string };
+
+export interface EventChoice {
+  readonly id: string;
+  readonly label: string;
+  /** Conséquences annoncées au joueur. */
+  readonly detail: string;
+  readonly cost: readonly ScaledAmount[];
+  readonly requires?: Condition;
+  readonly effects: readonly EventEffect[];
+  /** Texte affiché une fois le choix fait. */
+  readonly outcome: string;
+}
+
+/** Visuel 3D et teinte d'écran associés à un événement. */
+export type EventVisual =
+  'flare' | 'meteors' | 'storm' | 'convoy' | 'ghost' | 'wreck' | 'resonance' | 'blackout';
+
+export interface StationEventDef {
+  readonly id: string;
+  readonly title: string;
+  /** Origine de l'alerte (capteur, fréquence…). */
+  readonly source: string;
+  readonly text: string;
+  readonly visual: EventVisual;
+  /** Durée de la fenêtre de décision (ou de l'effet d'ambiance), en secondes. */
+  readonly duration: number;
+  readonly weight: number;
+  readonly unlock: Condition;
+  readonly choices: readonly EventChoice[];
+  /** Effets appliqués dès l'apparition. */
+  readonly onStart: readonly EventEffect[];
+  /** Effets appliqués si la fenêtre expire sans réponse. */
+  readonly onExpire: readonly EventEffect[];
+  readonly expireText: string;
+  /** Objectif d'impulsions manuelles à atteindre avant l'expiration. */
+  readonly clickGoal?: {
+    readonly count: number;
+    readonly effects: readonly EventEffect[];
+    readonly outcome: string;
+  };
+}
+
+/** Événement de station en cours. */
+export interface ActiveEvent {
+  readonly id: string;
+  readonly serial: number;
+  readonly startedAt: number;
+  readonly expiresAt: number;
+  /** Impulsions comptées vers l'objectif. */
+  readonly progress: number;
+  /** Graine utilisée par le rendu. */
+  readonly seed: number;
 }
 
 export type StatId =
@@ -147,7 +230,8 @@ export type StatId =
   | 'patches'
   | 'deploys'
   | 'commands'
-  | 'logsRead';
+  | 'logsRead'
+  | 'events';
 
 export type Stats = Readonly<Record<StatId, number>>;
 
@@ -178,6 +262,9 @@ export interface GameState {
   readonly anomaly: Anomaly | null;
   readonly nextAnomalyAt: number;
   readonly nextIncidentAt: number;
+  readonly event: ActiveEvent | null;
+  readonly nextEventAt: number;
+  readonly lastEventId: string | null;
   readonly nextTicket: number;
   readonly rng: number;
 }
@@ -209,6 +296,13 @@ export type GameEvent =
   | { readonly type: 'anomalySpawned'; readonly anomaly: Anomaly }
   | { readonly type: 'anomalyCaught'; readonly label: string }
   | { readonly type: 'anomalyLost' }
+  | { readonly type: 'stationEvent'; readonly event: ActiveEvent }
+  | {
+      readonly type: 'stationEventEnded';
+      readonly id: string;
+      readonly outcome: string;
+      readonly result: 'choice' | 'goal' | 'expired';
+    }
   | { readonly type: 'reboot'; readonly cores: number }
   | { readonly type: 'flag'; readonly flag: string }
   | { readonly type: 'error'; readonly message: string };
@@ -234,6 +328,7 @@ export type Action =
     }
   | { readonly type: 'saveDraft'; readonly puzzleId: string; readonly code: string }
   | { readonly type: 'catchAnomaly' }
+  | { readonly type: 'answerEvent'; readonly choice: string }
   | { readonly type: 'decrypt'; readonly logId: string }
   | { readonly type: 'readLog'; readonly logId: string }
   | { readonly type: 'reboot' }

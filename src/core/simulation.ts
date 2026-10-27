@@ -11,6 +11,7 @@ import { computeModifiers, productionRates, type Modifiers } from './modifiers';
 import { add, scale } from './resources';
 import { nextExponential, nextInt } from './rng';
 import { ownedModuleCount } from './state';
+import { updateStationEvent } from './stationEvents';
 import type { GameEvent, GameState, Outcome } from './types';
 
 type Step = (state: GameState, mods: Modifiers) => Outcome;
@@ -125,6 +126,7 @@ export function tick(state: GameState, dt: number): Outcome {
     maybeSpawnIncident,
     runAutomation,
     updateAnomaly,
+    updateStationEvent,
     discover,
     unlockLogs,
     checkAchievements,

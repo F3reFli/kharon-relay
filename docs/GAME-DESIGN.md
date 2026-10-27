@@ -13,15 +13,21 @@
    - _deploy_ : firmware enregistré, rejoué sur les tests propres au ticket ;
    - _auto_ : l'essaim de drones répare tout incident après 120 s (40 s avec la version II).
 5. **Paquets dérivants** : environ toutes les 160 s, visibles 14 s. Récompense : surcharge ×3 pendant 30 s, ou un lot d'énergie, d'alliage ou de données.
-6. **Prestige** : `fragments = ⌊√(énergie du cycle / 10⁸)⌋`. Chaque fragment non dépensé donne +4 % de production. Les perks coûtent des fragments.
+6. **Événements de station** : premier créneau à 5 min, puis intervalle exponentiel de moyenne 210 s (au moins 90 s). Voir plus bas.
+7. **Prestige** : `fragments = ⌊√(énergie du cycle / 10⁸)⌋`. Chaque fragment non dépensé donne +4 % de production. Les perks coûtent des fragments.
 
 ## Multiplicateurs
 
 ```
 production(module) = base × unités × multModule × multRessource × multGlobal
-                     × (1 + 0,04 × fragments) × (1 + 0,02 × succès) × buffs
+                     × (1 + 0,04 × fragments) × (1 + 0,02 × succès)
+                     × buffsGlobaux × buffsModule × buffsRessource
                      × (1 − gravitéIncident) × (1,5 si patch optimisé)
+
+impulsion = (1 × multImpulsion × multiplicateur commun + taux ⚡ × couplage) × buffsImpulsion
 ```
+
+Les bonus temporaires ont une portée : toute la production, un module, une ressource ou les impulsions. Hors-ligne, seuls les bonus globaux sont pris en compte.
 
 ## Modules
 
@@ -40,6 +46,23 @@ production(module) = base × unités × multModule × multRessource × multGloba
 | —   | _Récit_                   | —                | —                         | L'Écho (déchiffrement par décalage, mod 27) |
 
 Chaque module dispose de 4 protocoles de palier, débloqués à 10, 25, 50 et 100 unités (×2, ×2, ×2 puis ×3).
+
+## Événements de station
+
+Les événements ne se cumulent pas : un seul à la fois. Le tirage est pondéré parmi les événements débloqués et évite de répéter le précédent quand un autre est possible. Les montants sont exprimés en **secondes de production actuelle**, avec un plancher, pour garder le même poids à tous les stades.
+
+| Événement                | Déblocage  | Fenêtre | Réponses                                                              | Sans réponse             |
+| ------------------------ | ---------- | ------- | --------------------------------------------------------------------- | ------------------------ |
+| Éruption stellaire       | 3 solaires | 30 s    | solaires ×6 pendant 60 s (incident 50 %) / +60 s de ⚡                | incident 50 %            |
+| Pluie de micrométéorites | 1 drone    | 30 s    | ⬡ ×5 pendant 45 s (incident 35 %) / boucliers : coûte 45 s de ⚡      | incident certain         |
+| Tempête sur Nérée        | 1 relais   | 35 s    | ◈ ×4 pendant 60 s / siphon ×6 pendant 60 s (si siphon) / +40 s de ⚡  | —                        |
+| Convoi automatique       | 1 noyau    | 40 s    | 90 s de ⚡ → 150 s de ⬡ / 90 s de ⬡ → 150 s de ◈ / rien               | —                        |
+| Transmission fantôme     | 1 relais   | 35 s    | coûte 60 s de ◈ : tout ×2 pendant 90 s + journal caché / +120 s de ⚡ | —                        |
+| Épave dérivante          | 3 drones   | 35 s    | +180 s de ⬡ et +60 s de ⚡ / +200 s de ◈                              | —                        |
+| Résonance du cœur        | 100 clics  | 20 s    | impulsions ×7 ; 45 impulsions → tout ×2 pendant 60 s                  | fin de la résonance      |
+| Chute de tension         | 1 fusion   | 30 s    | production ×0,5 ; 25 impulsions → relance, tout ×1,5 pendant 45 s     | retour lent à la normale |
+
+Un incident « provoqué » survient 3 s plus tard sur un module tiré normalement (pondéré par risque × √unités), dans la limite des 3 incidents simultanés.
 
 ## Rythme mesuré
 

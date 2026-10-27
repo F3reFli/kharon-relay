@@ -25,6 +25,14 @@ export const FIRST_ANOMALY_AT = 100;
 export const ANOMALY_MEAN_INTERVAL = 160;
 export const ANOMALY_LIFETIME = 14;
 
+/** Événements de station : premier créneau, intervalle moyen (exponentiel) et plancher. */
+export const FIRST_EVENT_AT = 300;
+export const EVENT_MEAN_INTERVAL = 210;
+export const EVENT_MIN_INTERVAL = 90;
+export const EVENT_RETRY_DELAY = 30;
+/** Délai avant l'incident provoqué par un choix risqué ou une alerte ignorée. */
+export const EVENT_INCIDENT_DELAY = 3;
+
 export const BASE_OFFLINE_HOURS = 8;
 export const BASE_OFFLINE_RATE = 0.5;
 
