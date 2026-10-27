@@ -121,3 +121,36 @@ test('la progression survit à un rechargement', async ({ page }) => {
   const value = await page.locator('.res-energy .res-value').textContent();
   expect(Number.parseFloat(value ?? '0')).toBeGreaterThanOrEqual(12);
 });
+
+test('répond à un événement de station au clavier', async ({ page }) => {
+  const errors = await start(
+    page,
+    seededSave({
+      event: { id: 'wreck', serial: 1, startedAt: 0, expiresAt: 40, progress: 0, seed: 3 },
+      nextEventAt: 9999,
+    }),
+  );
+  const card = page.locator('.event-card');
+  await expect(card.locator('.ev-title')).toHaveText('ÉPAVE DÉRIVANTE');
+  await expect(card.locator('.ev-choice')).toHaveCount(2);
+  await page.keyboard.press('1');
+  await expect(card).toHaveClass(/result-choice/);
+  await expect(card.locator('.ev-source')).toContainText('RÉPONSE');
+  await expect(page.locator('.event-log')).toContainText('ÉPAVE DÉRIVANTE');
+  expect(errors).toEqual([]);
+});
+
+test('relance la station pendant une chute de tension', async ({ page }) => {
+  await start(
+    page,
+    seededSave({
+      event: { id: 'blackout', serial: 1, startedAt: 0, expiresAt: 60, progress: 0, seed: 3 },
+      nextEventAt: 9999,
+    }),
+  );
+  await expect(page.locator('.screen-fx')).toHaveClass(/fx-blackout/);
+  await expect(page.locator('.ev-goal-text')).toContainText('0 / 25');
+  await pulse(page, 25);
+  await expect(page.locator('.event-card')).toHaveClass(/result-goal/);
+  await expect(page.locator('.banner')).toContainText('OBJECTIF ATTEINT');
+});

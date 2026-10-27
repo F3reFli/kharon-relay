@@ -15,7 +15,7 @@ import { ACHIEVEMENT_BONUS } from './data/achievements';
 import { MODULES } from './data/modules';
 import { getPerk, getUpgrade } from './data/upgrades';
 import { EMPTY_RESOURCES } from './resources';
-import type { Effect, GameState, ModuleId, ResourceId, Resources } from './types';
+import type { BuffTarget, Effect, GameState, ModuleId, ResourceId, Resources } from './types';
 
 export interface Modifiers {
   readonly clickMult: number;
@@ -121,11 +121,21 @@ export function computeModifiers(state: GameState): Modifiers {
   return activeEffects(state).reduce<Modifiers>(applyEffect, BASE_MODIFIERS);
 }
 
-/** Multiplicateur commun à toute la production : global × fragments × succès × buffs. */
+const GLOBAL_TARGET: BuffTarget = { kind: 'global' };
+
+/** Produit des bonus temporaires actifs dont la portée satisfait `matches`. */
+export function buffMultiplier(state: GameState, matches: (target: BuffTarget) => boolean): number {
+  return state.buffs.reduce(
+    (acc, b) => (b.until > state.time && matches(b.target ?? GLOBAL_TARGET) ? acc * b.mult : acc),
+    1,
+  );
+}
+
+/** Multiplicateur commun à toute la production : global × fragments × succès × buffs globaux. */
 export function sharedMultiplier(state: GameState, mods: Modifiers): number {
   const cores = 1 + CORE_BONUS * state.resources.cores;
   const achievements = 1 + ACHIEVEMENT_BONUS * state.achievements.length;
-  const buffs = state.buffs.filter((b) => b.until > state.time).reduce((acc, b) => acc * b.mult, 1);
+  const buffs = buffMultiplier(state, (t) => t.kind === 'global');
   return mods.globalMult * cores * achievements * buffs;
 }
 
@@ -142,12 +152,18 @@ export function moduleRates(state: GameState, mods: Modifiers, id: ModuleId): Re
   const def = MODULES.find((m) => m.id === id);
   const count = state.modules[id].count;
   if (!def || count === 0) return EMPTY_RESOURCES;
+  const moduleBuff = buffMultiplier(state, (t) => t.kind === 'module' && t.module === id);
   const factor =
-    count * mods.moduleMult[id] * moduleHealthFactor(state, id) * sharedMultiplier(state, mods);
-  return (Object.keys(def.produces) as ResourceId[]).reduce<Resources>(
-    (acc, r) => ({ ...acc, [r]: acc[r] + (def.produces[r] ?? 0) * factor * mods.resourceMult[r] }),
-    EMPTY_RESOURCES,
-  );
+    count *
+    mods.moduleMult[id] *
+    moduleHealthFactor(state, id) *
+    sharedMultiplier(state, mods) *
+    moduleBuff;
+  return (Object.keys(def.produces) as ResourceId[]).reduce<Resources>((acc, r) => {
+    const resourceBuff = buffMultiplier(state, (t) => t.kind === 'resource' && t.resource === r);
+    const gain = (def.produces[r] ?? 0) * factor * mods.resourceMult[r] * resourceBuff;
+    return { ...acc, [r]: acc[r] + gain };
+  }, EMPTY_RESOURCES);
 }
 
 export function productionRates(
@@ -172,5 +188,6 @@ export function clickValue(
 ): number {
   const energyRate = (rates ?? productionRates(state, mods)).energy;
   const base = BASE_CLICK * mods.clickMult * sharedMultiplier(state, mods);
-  return base + energyRate * mods.clickFromRate;
+  const clickBuff = buffMultiplier(state, (t) => t.kind === 'click');
+  return (base + energyRate * mods.clickFromRate) * clickBuff;
 }

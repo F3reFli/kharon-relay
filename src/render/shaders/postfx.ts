@@ -31,6 +31,9 @@ export const StylizeShader = {
     uColorize: { value: 0 },
     uEdges: { value: 1 },
     uTime: { value: 0 },
+    uFloor: { value: 0.12 },
+    uUnderlay: { value: 0.3 },
+    uFlicker: { value: 1 },
   },
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
@@ -45,7 +48,11 @@ uniform vec3 uTint;
 uniform float uColorize;
 uniform float uEdges;
 uniform float uTime;
+uniform float uFloor;
+uniform float uUnderlay;
+uniform float uFlicker;
 varying vec2 vUv;
+${HASH_GLSL}
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 vec3 at(vec2 px) { return texture2D(tDiffuse, clamp(px / uResolution, 0.0, 1.0)).rgb; }
@@ -64,7 +71,8 @@ vec4 dither(vec2 px) {
   float size = max(2.0, floor(uCell * 0.35));
   vec2 cell = floor(px / size);
   vec3 col = at((cell + 0.5) * size);
-  float l = pow(clamp(luma(col) * 1.25, 0.0, 1.0), 0.8);
+  float lin = clamp((luma(col) - uFloor * 0.5) / (1.0 - uFloor * 0.5), 0.0, 1.0);
+  float l = pow(clamp(lin * 1.25, 0.0, 1.0), 0.8);
   float t = bayer8(cell) - 0.5;
   float levels = 4.0;
   float q = clamp(floor(l * (levels - 1.0) + 0.5 + t), 0.0, levels - 1.0) / (levels - 1.0);
@@ -75,14 +83,9 @@ vec4 dither(vec2 px) {
 
 float sobelLum(vec2 c, vec2 d) { return luma(at(c + d * uCell)); }
 
-vec4 ascii(vec2 px) {
-  vec2 cell = floor(px / uCell);
-  vec2 center = (cell + 0.5) * uCell;
-  float q = uCell * 0.25;
-  vec3 col = (at(center + vec2(-q, -q)) + at(center + vec2(q, -q)) + at(center + vec2(-q, q)) + at(center + vec2(q, q))) * 0.25;
-  float l = luma(col);
-  float boosted = pow(clamp(l * 1.6, 0.0, 1.0), 0.7);
-
+/** Glyphe de contour orienté (| / - \\) selon le gradient de Sobel, ou -1 sans contour net. */
+float edgeGlyph(vec2 center, float l, float boosted) {
+  if (uEdges < 0.5 || boosted < 0.14) return -1.0;
   float tl = sobelLum(center, vec2(-1.0, 1.0));
   float t  = sobelLum(center, vec2(0.0, 1.0));
   float tr = sobelLum(center, vec2(1.0, 1.0));
@@ -93,22 +96,42 @@ vec4 ascii(vec2 px) {
   float br = sobelLum(center, vec2(1.0, -1.0));
   vec2 g = vec2(tr + 2.0 * mr + br - tl - 2.0 * ml - bl, tl + 2.0 * t + tr - bl - 2.0 * b - br);
   float mag = length(g);
+  // Contraste relatif : une silhouette nette, pas le grain d'une nébuleuse.
+  if (mag < 0.4 || mag / (0.3 + l) < 1.15) return -1.0;
+  float a = mod(atan(g.y, g.x) + 3.14159265, 3.14159265);
+  float bucket = mod(floor(a / 0.78539816 + 0.5), 4.0);
+  // ordre de l'atlas après la rampe : barre, slash, tiret, antislash
+  return uRampCount + (bucket < 0.5 ? 0.0 : bucket < 1.5 ? 3.0 : bucket < 2.5 ? 2.0 : 1.0);
+}
 
-  float glyph;
-  if (uEdges > 0.5 && mag > 0.55 && boosted > 0.08) {
-    float a = mod(atan(g.y, g.x) + 3.14159265, 3.14159265);
-    float bucket = mod(floor(a / 0.78539816 + 0.5), 4.0);
-    // ordre de l'atlas après la rampe : barre, slash, tiret, antislash
-    float edgeIndex = bucket < 0.5 ? 0.0 : bucket < 1.5 ? 3.0 : bucket < 2.5 ? 2.0 : 1.0;
-    glyph = uRampCount + edgeIndex;
-  } else {
+vec4 ascii(vec2 px) {
+  vec2 cell = floor(px / uCell);
+  vec2 center = (cell + 0.5) * uCell;
+  float q = uCell * 0.25;
+  vec3 col = (at(center + vec2(-q, -q)) + at(center + vec2(q, -q)) + at(center + vec2(-q, q)) + at(center + vec2(q, q))) * 0.25;
+  float l = luma(col);
+  // Niveau de noir : l'espace reste noir au lieu de se couvrir de glyphes.
+  float lin = clamp((l - uFloor) / (1.0 - uFloor), 0.0, 1.0);
+  float boosted = pow(clamp(lin * 1.45, 0.0, 1.0), 0.72);
+
+  float glyph = edgeGlyph(center, l, boosted);
+  if (glyph < 0.0) {
     glyph = floor(boosted * (uRampCount - 0.001));
+    // Scintillement discret des cellules vives : l'écran respire.
+    float flick = hash12(cell + floor(uTime * 7.0) * 17.0);
+    if (boosted > 0.3 && flick > 1.0 - 0.025 * uFlicker) glyph = min(uRampCount - 1.0, glyph + 1.0);
   }
+
   vec2 inCell = fract(px / uCell);
   float mask = texture2D(tGlyphs, vec2((glyph + inCell.x) / uGlyphCount, inCell.y)).r;
-  vec3 ink = shade(col, 0.45 + 1.15 * boosted);
-  vec3 background = mix(uTint * 0.018, col * 0.06, uColorize);
-  return vec4(background + ink * mask, 1.0);
+  vec3 ink = shade(col, 0.5 + 1.2 * boosted);
+  // Points chauds : les zones saturées (cœur, soleil) tirent vers le blanc.
+  ink = mix(ink, vec3(1.0), smoothstep(0.7, 1.0, lin) * 0.4);
+  // Sous-couche : l'image d'origine, assombrie, donne du volume entre les glyphes.
+  vec3 src = at(px);
+  vec3 under = mix(uTint * luma(src), src, uColorize) * uUnderlay * smoothstep(0.0, 0.25, lin + 0.05);
+  vec3 background = uTint * 0.012 * (1.0 - uColorize);
+  return vec4(background + under + ink * mask, 1.0);
 }
 
 void main() {
@@ -158,7 +181,8 @@ void main() {
   uv.x += tear * 0.08 * uGlitch;
   uv.y += (hash12(vec2(frame, 3.0)) - 0.5) * 0.004 * uGlitch;
 
-  float ca = (0.0008 + 0.006 * uGlitch) * (0.4 + uIntensity);
+  // Aberration discrète au repos (les glyphes font 1 px d'épaisseur), forte pendant un glitch.
+  float ca = 0.00022 * (0.4 + uIntensity) + 0.0065 * uGlitch;
   vec3 col;
   col.r = texture2D(tDiffuse, uv + vec2(ca, 0.0)).r;
   col.g = texture2D(tDiffuse, uv).g;

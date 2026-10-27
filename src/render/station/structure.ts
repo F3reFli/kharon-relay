@@ -75,6 +75,7 @@ export class HabitatRing {
   private readonly windows: InstancedMesh;
   private readonly windowMat;
   private lit = 0;
+  private dim = 0;
 
   constructor(mats: StationMaterials) {
     const torus = new Mesh(new TorusGeometry(RING_RADIUS, 0.55, 14, 96), mats.hull);
@@ -130,9 +131,16 @@ export class HabitatRing {
     this.lit = p;
   }
 
+  /** Coupure de courant : les hublots s'éteignent en grésillant. */
+  setDim(level: number): void {
+    this.dim = level;
+  }
+
   update(dt: number, time: number): void {
     this.group.rotation.y += dt * 0.05;
-    this.windowMat.emissiveIntensity = 0.15 + this.lit * 2.2 + Math.sin(time * 3) * 0.05 * this.lit;
+    const glow = 0.15 + this.lit * 2.2 + Math.sin(time * 3) * 0.05 * this.lit;
+    const sputter = this.dim > 0.05 && Math.sin(time * 41) > 0.82 ? 0.6 : 0;
+    this.windowMat.emissiveIntensity = glow * (1 - this.dim * 0.95) + sputter * this.dim;
   }
 }
 

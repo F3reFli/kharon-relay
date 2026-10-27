@@ -34,6 +34,11 @@ const HINTS: readonly Hint[] = [
     text: "▸ Un paquet de données dérive près de la station : cliquez dessus pour l'intercepter !",
   },
   {
+    id: 'event',
+    when: (s) => s.event !== null && s.stats.events <= 2,
+    text: '▸ ÉVÉNEMENT DE STATION : répondez avant la fin du compte à rebours (clic ou touches 1-3), ou tapez « event ».',
+  },
+  {
     id: 'protocols',
     when: (s) => s.upgrades.length === 0 && UPGRADES.some((u) => evaluate(s, u.unlock)),
     text: '▸ Des PROTOCOLES sont disponibles dans le panneau de droite : ils multiplient votre production.',

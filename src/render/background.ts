@@ -40,7 +40,12 @@ function createSky(): ShaderMaterial {
   return new ShaderMaterial({
     side: BackSide,
     depthWrite: false,
-    uniforms: { uTime: { value: 0 } },
+    uniforms: {
+      uTime: { value: 0 },
+      uSun: { value: SUN_DIRECTION.clone() },
+      uFlare: { value: 0 },
+      uFlash: { value: 0 },
+    },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -49,10 +54,16 @@ function createSky(): ShaderMaterial {
       }`,
     fragmentShader: /* glsl */ `
       uniform float uTime;
+      uniform vec3 uSun;
+      uniform float uFlare;
+      uniform float uFlash;
       varying vec3 vDir;
       ${NOISE_GLSL}
       void main() {
         vec3 d = normalize(vDir);
+        // Halo d'éruption stellaire autour de la direction du soleil.
+        float sunward = max(dot(d, normalize(uSun)), 0.0);
+        vec3 haze = vec3(1.0, 0.55, 0.22) * (pow(sunward, 6.0) * 0.6 + pow(sunward, 40.0)) * uFlare;
         float n1 = fbm(d * 2.2 + vec3(0.0, uTime * 0.002, 0.0));
         float n2 = fbm(d * 4.5 + n1 * 0.8);
         float bandX = d.y * 2.2 + n1 * 0.6 - 0.15;
@@ -63,7 +74,9 @@ function createSky(): ShaderMaterial {
         vec3 col = mix(violet, teal, smoothstep(-0.3, 0.5, n2));
         col = mix(col, ember, smoothstep(0.35, 0.8, n1 * n2 + 0.3) * 0.6);
         float density = smoothstep(-0.15, 0.7, n2) * band;
-        gl_FragColor = vec4(col * density * 0.55 + vec3(0.004, 0.006, 0.012), 1.0);
+        // Éclairs en nappe : la tempête de Nérée illumine brièvement toute la nébuleuse.
+        vec3 sheet = vec3(0.45, 0.5, 1.0) * uFlash * (0.03 + density * 0.5);
+        gl_FragColor = vec4(col * density * 0.55 + vec3(0.004, 0.006, 0.012) + haze + sheet, 1.0);
       }`,
   });
 }
@@ -130,7 +143,12 @@ function createStars(count: number): Points {
 
 function createPlanetMaterial(): ShaderMaterial {
   return new ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSun: { value: SUN_DIRECTION.clone() }, uStorm: { value: 0 } },
+    uniforms: {
+      uTime: { value: 0 },
+      uSun: { value: SUN_DIRECTION.clone() },
+      uStorm: { value: 0 },
+      uFlash: { value: 0 },
+    },
     vertexShader: /* glsl */ `
       varying vec3 vNormal;
       varying vec3 vPos;
@@ -146,6 +164,7 @@ function createPlanetMaterial(): ShaderMaterial {
       uniform float uTime;
       uniform vec3 uSun;
       uniform float uStorm;
+      uniform float uFlash;
       varying vec3 vNormal;
       varying vec3 vPos;
       varying vec3 vView;
@@ -172,7 +191,10 @@ function createPlanetMaterial(): ShaderMaterial {
         float light = smoothstep(-0.15, 0.6, dot(normalize(vNormal), normalize(uSun)));
         float rim = pow(1.0 - max(dot(normalize(vNormal), vView), 0.0), 3.0);
         vec3 atmo = vec3(0.95, 0.6, 0.4) * rim * (0.25 + light);
-        gl_FragColor = vec4(col * (0.015 + light * 0.62) + atmo * 0.7 + eyeGlow, 1.0);
+        // Éclairs dans l'œil pendant une tempête.
+        float bolt = smoothstep(0.32, 0.0, de) * (0.6 + 0.4 * fbm(p * 14.0 + uTime));
+        vec3 flash = vec3(0.65, 0.85, 1.0) * bolt * uFlash * 1.4;
+        gl_FragColor = vec4(col * (0.015 + light * 0.62) + atmo * 0.7 + eyeGlow + flash, 1.0);
       }`,
   });
 }
@@ -310,9 +332,18 @@ export class DebrisField {
   }
 }
 
+/** Intensités pilotées par les événements de station (0..1). */
+export interface SkyMood {
+  readonly storm: number;
+  readonly lightning: number;
+  readonly flare: number;
+}
+
 export class Background {
   readonly group = new Group();
   private readonly sky: ShaderMaterial;
+  private readonly sun: Sprite;
+  private flash = 0;
   private readonly stars: Points;
   private readonly planet: ShaderMaterial;
   private readonly planetMesh: Mesh;
@@ -335,7 +366,8 @@ export class Background {
     rings.position.copy(PLANET_POSITION);
     rings.rotation.set(Math.PI / 2 - 0.32, 0.18, 0);
     this.group.add(rings);
-    this.group.add(createSunSprite());
+    this.sun = createSunSprite();
+    this.group.add(this.sun);
     this.debris = new DebrisField(debrisCount);
     this.group.add(this.debris.mesh);
   }
@@ -353,11 +385,17 @@ export class Background {
     (this.stars.material as ShaderMaterial).uniforms.uPixelRatio!.value = pr;
   }
 
-  update(dt: number, time: number, storm: number): void {
+  update(dt: number, time: number, mood: SkyMood): void {
     this.sky.uniforms.uTime!.value = time;
+    this.sky.uniforms.uFlare!.value = mood.flare;
     (this.stars.material as ShaderMaterial).uniforms.uTime!.value = time;
     this.planet.uniforms.uTime!.value = time;
-    this.planet.uniforms.uStorm!.value = storm;
+    this.planet.uniforms.uStorm!.value = mood.storm;
+    this.flash = Math.max(0, this.flash - dt * 4);
+    if (mood.lightning > 0.3 && Math.random() < dt * 2.2 * mood.lightning) this.flash = 1;
+    this.planet.uniforms.uFlash!.value = this.flash;
+    this.sky.uniforms.uFlash!.value = this.flash * mood.lightning;
+    this.sun.scale.setScalar(260 * (1 + mood.flare * 1.6 + Math.sin(time * 7) * 0.05 * mood.flare));
     this.planetMesh.rotation.y += dt * 0.004;
     this.debris.update(dt);
   }

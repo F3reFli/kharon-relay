@@ -12,6 +12,10 @@ La 3D (Three.js) passe par une chaîne de post-traitement rétro : rendu **ASCII
 | :--------------------------------: | :-------------------------------------: | :------------------------------------------------: |
 | ![net](docs/screenshots/clean.jpg) | ![tramage](docs/screenshots/dither.jpg) | ![phosphore](docs/screenshots/phosphor-blocks.jpg) |
 
+|        Événement : convoi automatique        |           Événement : résonance du cœur            |
+| :------------------------------------------: | :------------------------------------------------: |
+| ![convoi](docs/screenshots/event-convoy.jpg) | ![résonance](docs/screenshots/event-resonance.jpg) |
+
 |       Éditeur KX-ASM + débogueur        |               Terminal KX-OS               |
 | :-------------------------------------: | :----------------------------------------: |
 | ![éditeur](docs/screenshots/editor.jpg) | ![terminal](docs/screenshots/terminal.jpg) |
@@ -21,11 +25,12 @@ La 3D (Three.js) passe par une chaîne de post-traitement rétro : rendu **ASCII
 ## Fonctionnalités
 
 - **Clicker 3D** : cliquez sur le cœur du réacteur (shader de plasma déformé par bruit simplex) pour générer de l'énergie. La station se construit visuellement à mesure que vous achetez des modules : panneaux solaires, essaim de drones, baies de serveurs, cellules à fusion, antenne relais, siphon gravitationnel braqué sur Nérée, treillis quantique, confinement d'antimatière.
-- **10 sous-systèmes**, **3 ressources** (énergie, alliage, données), **plus de 60 protocoles** (améliorations), **30 succès** et un système de **prestige** (redémarrage à froid, fragments mémoire, perks permanents).
+- **10 sous-systèmes**, **3 ressources** (énergie, alliage, données), **plus de 60 protocoles** (améliorations), **35 succès** et un système de **prestige** (redémarrage à froid, fragments mémoire, perks permanents).
+- **Événements de station** : éruption stellaire, pluie de micrométéorites, tempête sur Nérée, cargo marchand, transmission fantôme, épave dérivante, résonance du cœur, chute de tension. Chaque alerte impose un choix avant la fin d'un compte à rebours (ou un objectif d'impulsions), avec sa mise en scène 3D, sa lueur d'écran et ses sons. Les gains et les coûts suivent votre production : un événement compte autant en début qu'en fin de partie.
 - **Incidents et programmation** : les modules tombent en panne. Réparez-les gratuitement en écrivant un vrai programme en **KX-ASM**, l'assembleur original de la station (4 registres, flux IN/OUT, sauts conditionnels). Vous disposez d'un éditeur avec coloration syntaxique, d'un **débogueur pas à pas** (registres, pointeur d'instruction, flux comparés à l'attendu) et d'un banc de test. Les cas de test sont générés aléatoirement, donc une solution doit être correcte en général : impossible de coder les réponses en dur. Les firmwares validés sont réutilisables (`deploy`) et un démon peut les déployer automatiquement.
 - **Terminal KX-OS complet** : système de fichiers virtuel reflétant l'état de la station (`/logs`, `/sys/modules`, `/firmware`, `/tickets`, `/signal`), une trentaine de commandes (`ls`, `cat`, `tree`, `grep`, `hexdump`, `repair`, `patch`, `build`, `install`, `decrypt`, `scan`, `top`, `sysinfo`…), autocomplétion Tab, historique, et quelques secrets.
-- **Récit** : 14 journaux de bord, dont certains chiffrés, révèlent un mystère qui se termine en boucle. Le dernier ticket de programmation décode le signal lui-même.
-- **Fond 3D procédural** : nébuleuse en fBm, champ d'étoiles scintillantes, géante gazeuse avec bandes à _domain warping_ et œil de tempête pulsant, anneaux, ceinture de débris instanciés, paquets de données dérivants à intercepter.
+- **Récit** : 15 journaux de bord, dont certains chiffrés ou cachés, révèlent un mystère qui se termine en boucle. Le dernier ticket de programmation décode le signal lui-même.
+- **Fond 3D procédural** : nébuleuse en fBm, champ d'étoiles scintillantes et filantes, géante gazeuse avec bandes à _domain warping_ et œil de tempête pulsant (et ses éclairs), anneaux, ceinture de débris instanciés, paquets de données dérivants à intercepter.
 - **Audio 100 % synthétisé** (WebAudio) : nappe de coque, souffle de ventilation, craquements, bips lointains, alarmes et effets.
 - **Modèles 3D Meshy AI** optionnels via un pipeline reproductible, plafonné en crédits.
 - Sauvegarde automatique avec copie de secours, export/import par code, **progression hors-ligne**, réglages persistés (filtre, palette, glyphes, qualité, audio, mouvements réduits).
@@ -76,12 +81,13 @@ npm run dev        # http://localhost:5173
 
 ## Comment jouer
 
-| Action                                 | Contrôle                                            |
-| -------------------------------------- | --------------------------------------------------- |
-| Impulsion manuelle                     | clic sur le cœur du réacteur, ou **barre d'espace** |
-| Tourner / zoomer la caméra             | glisser / molette                                   |
-| Ouvrir le terminal                     | **`** (ou ²)                                        |
-| Éditeur : lancer les tests / pas à pas | **Ctrl+Entrée** / **F10**                           |
+| Action                                 | Contrôle                                             |
+| -------------------------------------- | ---------------------------------------------------- |
+| Impulsion manuelle                     | clic sur le cœur du réacteur, ou **barre d'espace**  |
+| Tourner / zoomer la caméra             | glisser / molette                                    |
+| Ouvrir le terminal                     | **`** (ou ²)                                         |
+| Répondre à un événement de station     | clic sur la carte d'alerte, ou touches **1** à **3** |
+| Éditeur : lancer les tests / pas à pas | **Ctrl+Entrée** / **F10**                            |
 
 1. Générez de l'énergie, construisez un **banc de condensateurs**, puis les modules suivants.
 2. Quand un **incident** survient, le module perd une partie de sa production. Trois options :
@@ -89,7 +95,8 @@ npm run dev        # http://localhost:5173
    - **PATCH** : payer une réparation rapide ;
    - **DÉPLOYER** : réutiliser un firmware déjà écrit.
 3. Installez des **protocoles**, lisez les **archives**, interceptez les **paquets dérivants**.
-4. Au-delà de 100 M d'énergie produite dans le cycle, un **redémarrage à froid** rapporte des fragments mémoire permanents.
+4. Répondez aux **événements de station** (à partir de 5 minutes de jeu) : récolter une pluie de météores au risque d'une panne, commercer avec un cargo, répondre à une voix qui n'aurait pas dû parler… Les phénomènes du cœur (résonance, chute de tension) se jouent en frappant le réacteur. Une alerte dangereuse ignorée a des conséquences.
+5. Au-delà de 100 M d'énergie produite dans le cycle, un **redémarrage à froid** rapporte des fragments mémoire permanents.
 
 ### KX-ASM en 30 secondes
 
@@ -146,9 +153,9 @@ Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Game design et équil
 ## Qualité
 
 - TypeScript strict (`noUncheckedIndexedAccess`), ESLint, Prettier.
-- Plus de 160 tests unitaires, couverture du noyau ≈ 98 % des lignes (seuil CI : 80 %), et 7 tests E2E.
+- Près de 200 tests unitaires, couverture du noyau ≈ 98 % des lignes (seuil CI : 80 %), et 9 tests E2E.
 - Chaque ticket KX-ASM a une solution de référence testée sur plusieurs graines, et son firmware corrompu de départ doit échouer.
-- Tests E2E : démarrage sans erreur, construction, terminal, réparation d'un incident, refus d'un firmware faux, persistance.
+- Tests E2E : démarrage sans erreur, construction, terminal, réparation d'un incident, refus d'un firmware faux, persistance, réponse à un événement, objectif d'impulsions.
 - Les données externes (sauvegarde locale, code d'import, manifest des modèles, réglages) sont validées par schéma (zod) avant usage.
 - CI GitHub Actions : lint, format, types, couverture, build, E2E, build Docker avec test de santé, publication GHCR.
 

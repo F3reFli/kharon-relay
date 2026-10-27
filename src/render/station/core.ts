@@ -26,6 +26,9 @@ function coreMaterial(): ShaderMaterial {
       uPower: { value: 0 },
       uPulse: { value: 0 },
       uAlert: { value: 0 },
+      uMood: { value: new Color(1, 1, 1) },
+      uMoodAmount: { value: 0 },
+      uDim: { value: 0 },
     },
     vertexShader: /* glsl */ `
       uniform float uTime;
@@ -50,6 +53,9 @@ function coreMaterial(): ShaderMaterial {
       uniform float uPulse;
       uniform float uAlert;
       uniform float uTime;
+      uniform vec3 uMood;
+      uniform float uMoodAmount;
+      uniform float uDim;
       varying vec3 vNormal;
       varying vec3 vView;
       varying float vNoise;
@@ -61,9 +67,11 @@ function coreMaterial(): ShaderMaterial {
         vec3 base = mix(mix(dim, mid, smoothstep(0.0, 0.45, uPower)), hot, smoothstep(0.4, 1.0, uPower));
         vec3 alert = vec3(1.0, 0.1, 0.12) * (0.5 + 0.5 * sin(uTime * 9.0));
         base = mix(base, alert, uAlert * 0.55);
+        base = mix(base, uMood, uMoodAmount * 0.85);
         float veins = smoothstep(0.15, 0.6, vNoise);
         vec3 col = base * (0.3 + 0.85 * veins) + base * fres * 1.5 + vec3(1.0) * uPulse * 0.45;
-        gl_FragColor = vec4(col * (0.4 + uPower * 0.7), 1.0);
+        float flicker = 1.0 - uDim * (0.7 + 0.3 * step(0.5, fract(sin(uTime * 23.0) * 43758.5)));
+        gl_FragColor = vec4(col * (0.4 + uPower * 0.7) * flicker, 1.0);
       }`,
   });
 }
@@ -81,6 +89,10 @@ export class ReactorCore {
   private hover = 0;
   private hoverTarget = 0;
   private alert = 0;
+  private moodAmount = 0;
+  private dim = 0;
+  private spin = 1;
+  private readonly mood = new Color(1, 1, 1);
 
   constructor() {
     this.material = coreMaterial();
@@ -134,6 +146,14 @@ export class ReactorCore {
     this.alert = level;
   }
 
+  /** Teinte d'ambiance (résonance, transmission fantôme), assombrissement et vitesse des anneaux. */
+  setMood(color: Color | null, amount: number, dim: number, spin: number): void {
+    if (color) this.mood.copy(color);
+    this.moodAmount = color ? amount : 0;
+    this.dim = dim;
+    this.spin = spin;
+  }
+
   setHover(on: boolean): void {
     this.hoverTarget = on ? 1 : 0;
   }
@@ -150,15 +170,18 @@ export class ReactorCore {
     u.uPower!.value = 0.25 + this.power * 0.75;
     u.uPulse!.value = this.pulse;
     u.uAlert!.value = this.alert;
+    (u.uMood!.value as Color).copy(this.mood);
+    u.uMoodAmount!.value = this.moodAmount;
+    u.uDim!.value = this.dim;
     const s = 1 + this.hover * 0.06 + this.pulse * 0.08;
     this.visual.scale.setScalar(s);
     this.shell.rotation.y += dt * (0.15 + this.power * 0.5);
     this.shell.rotation.x += dt * 0.07;
     this.rings.forEach((r, i) => {
-      r.rotation.z += dt * (0.3 + i * 0.25) * (0.4 + this.power) * (i % 2 ? -1 : 1);
+      r.rotation.z += dt * (0.3 + i * 0.25) * (0.4 + this.power) * this.spin * (i % 2 ? -1 : 1);
     });
     const hue = this.alert > 0.5 ? 0.0 : 0.52 - (1 - this.power) * 0.45;
-    this.light.color.setHSL(hue, 0.85, 0.6);
-    this.light.intensity = 6 + this.power * 30 + this.pulse * 35;
+    this.light.color.setHSL(hue, 0.85, 0.6).lerp(this.mood, this.moodAmount * 0.8);
+    this.light.intensity = (6 + this.power * 30 + this.pulse * 35) * (1 - this.dim * 0.8);
   }
 }

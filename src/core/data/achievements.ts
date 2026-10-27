@@ -167,6 +167,37 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     condition: { kind: 'flag', flag: 'echo-sent' },
   },
   {
+    id: 'event-1',
+    name: 'Premier contact',
+    description: 'Vivre un premier événement de station.',
+    condition: { kind: 'stat', stat: 'events', value: 1 },
+  },
+  {
+    id: 'event-25',
+    name: 'Météo spatiale',
+    description: 'Traverser 25 événements de station.',
+    condition: { kind: 'stat', stat: 'events', value: 25 },
+  },
+  {
+    id: 'harmonic',
+    name: 'Harmonique parfaite',
+    description: 'Mener une résonance du cœur à son terme.',
+    condition: { kind: 'flag', flag: 'harmonic' },
+  },
+  {
+    id: 'restarted',
+    name: 'Mains sur le cœur',
+    description: 'Relancer la station à la main après une chute de tension.',
+    condition: { kind: 'flag', flag: 'restarted' },
+  },
+  {
+    id: 'ghost',
+    name: 'Ici Kharon',
+    description: 'Répondre à la voix sur la fréquence 7.',
+    condition: { kind: 'flag', flag: 'ghost-answered' },
+    hidden: true,
+  },
+  {
     id: 'sudo',
     name: 'Incident signalé',
     description: 'Tenter une élévation de privilèges.',

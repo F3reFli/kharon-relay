@@ -1,7 +1,9 @@
 /** Assemblage de la station et synchronisation avec l'état du jeu. */
 
-import { Box3, Group, Object3D, Vector3 } from 'three';
+import { Box3, Group, type MeshStandardMaterial, Object3D, Vector3 } from 'three';
 import type { GameState, ModuleId } from '../../core/types';
+import type { EventLevels } from '../eventFx';
+import { MOOD_COLORS } from '../eventProps';
 import { ReactorCore } from './core';
 import { createStationMaterials } from './materials';
 import { DroneSwarm, ModuleVisual, RelayDish, createModuleVisuals } from './modules';
@@ -27,9 +29,11 @@ export class Station {
   private readonly mast: Mast;
   private readonly visuals: Map<ModuleId, ModuleVisual>;
   private readonly counts = new Map<ModuleId, number>();
+  private readonly hull: MeshStandardMaterial;
 
   constructor() {
     const mats = createStationMaterials();
+    this.hull = mats.hull;
     this.core = new ReactorCore();
     this.group.add(this.core.group);
     this.group.add(buildStructure(mats));
@@ -65,6 +69,20 @@ export class Station {
       if (alert) alerts++;
     });
     this.core.setAlert(alerts > 0 ? 1 : 0);
+  }
+
+  /** Ambiance liée aux événements : teinte du cœur, coupure de courant, résonance. */
+  setMood(levels: EventLevels): void {
+    const tinted = levels.resonance >= levels.ghost ? 'resonance' : 'ghost';
+    const amount = Math.max(levels.resonance, levels.ghost);
+    this.core.setMood(
+      amount > 0.01 ? MOOD_COLORS[tinted] : null,
+      amount,
+      levels.blackout,
+      1 + levels.resonance * 3,
+    );
+    this.ring.setDim(levels.blackout);
+    this.hull.emissiveIntensity = 0.6 * (1 - levels.blackout * 0.85);
   }
 
   anchorOf(id: ModuleId): Vector3 {

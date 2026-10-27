@@ -1,6 +1,7 @@
 /** Traduction des événements de jeu en retours sensoriels : sons, notifications, journal. */
 
 import type { AudioEngine } from '../audio/audio';
+import { getStationEvent } from '../core/data/events';
 import { getPuzzle } from '../core/data/puzzles';
 import { formatClock, formatCost, formatNumber } from '../core/format';
 import type { GameEvent, GameState } from '../core/types';
@@ -63,8 +64,27 @@ function puzzleSolved(
   }
 }
 
+const ENDED_TONE = { choice: 'ok', goal: 'achievement', expired: 'warn' } as const;
+
+function stationEvent(
+  { event }: Extract<GameEvent, { type: 'stationEvent' }>,
+  ctx: FeedbackContext,
+): void {
+  const def = getStationEvent(event.id);
+  if (!def) return;
+  ctx.audio.play(
+    def.visual === 'blackout' ? 'blackout' : def.visual === 'resonance' ? 'resonance' : 'event',
+  );
+  ctx.note(`◆ ${def.title} — ${def.source}`, 'warn', false);
+  const hint = def.clickGoal
+    ? 'frappez le cœur du réacteur !'
+    : 'tapez « event » pour lire l’alerte et répondre.';
+  ctx.terminal.system(`◆ ${def.title} : ${hint}`, 'warn');
+}
+
 const HANDLERS: Handlers = {
-  click: (e, ctx) => ctx.audio.play(e.crit ? 'crit' : 'click'),
+  // Le son d'impulsion est joué par App.pulse, qui en module la hauteur selon le combo.
+  click: () => undefined,
   purchase: (e, ctx) => {
     ctx.audio.play('buy');
     ctx.note(
@@ -109,6 +129,12 @@ const HANDLERS: Handlers = {
     ctx.note(e.label, 'ok');
   },
   anomalyLost: (_e, ctx) => ctx.log.push(ctx.clock, 'Paquet dérivant perdu.', 'info'),
+  stationEvent,
+  stationEventEnded: (e, ctx) => {
+    const title = getStationEvent(e.id)?.title ?? e.id;
+    if (e.result !== 'expired') ctx.audio.play('eventEnd');
+    ctx.note(`${title} : ${e.outcome}`, ENDED_TONE[e.result], false);
+  },
   reboot: (e, ctx) => {
     ctx.audio.play('reboot');
     ctx.note(`Redémarrage à froid : +${formatNumber(e.cores)} fragment(s) mémoire.`, 'achievement');

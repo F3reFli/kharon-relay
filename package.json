@@ -1,7 +1,7 @@
 {
   "name": "kharon-relay",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "KHARON//RELAY — clicker 3D sur une station spatiale abandonnée, avec filtres ASCII et réparations par programmation.",
   "type": "module",
   "license": "MIT",

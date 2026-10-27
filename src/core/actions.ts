@@ -1,6 +1,6 @@
 /** Actions du joueur : achats, impulsions, réparations, journaux, redémarrage. */
 
-import { CRIT_MULTIPLIER, PRACTICE_SEED } from './constants';
+import { CRIT_MULTIPLIER, FIRST_EVENT_AT, PRACTICE_SEED } from './constants';
 import { evaluate } from './conditions';
 import { moduleCost, maxAffordable, patchCost, rebootFragments } from './costs';
 import { judge } from './asm/judge';
@@ -13,7 +13,8 @@ import { resolveIncident, savedSolutionPasses } from './incidents';
 import { clickValue, computeModifiers, productionRates } from './modifiers';
 import { add, canAfford, scale, subtract } from './resources';
 import { nextRandom } from './rng';
-import { bumpStat, emptyModules, withFlag, withModule } from './state';
+import { bumpStat, earn, emptyModules, withFlag, withModule } from './state';
+import { eventClick } from './stationEvents';
 import type { Cost, GameEvent, GameState, ModuleId, Outcome, Resources } from './types';
 
 const nothing = (state: GameState): Outcome => ({ state, events: [] });
@@ -21,15 +22,6 @@ const fail = (state: GameState, message: string): Outcome => ({
   state,
   events: [{ type: 'error', message }],
 });
-
-function earn(state: GameState, gain: Cost): GameState {
-  return {
-    ...state,
-    resources: add(state.resources, gain),
-    lifetime: add(state.lifetime, gain),
-    run: add(state.run, gain),
-  };
-}
 
 export function click(state: GameState): Outcome {
   const mods = computeModifiers(state);
@@ -41,7 +33,8 @@ export function click(state: GameState): Outcome {
     'crits',
     crit ? 1 : 0,
   );
-  return { state: counted, events: [{ type: 'click', amount, crit }] };
+  const goal = eventClick(counted);
+  return { state: goal.state, events: [{ type: 'click', amount, crit }, ...goal.events] };
 }
 
 export function buyModule(state: GameState, id: ModuleId, qty: number | 'max'): Outcome {
@@ -267,8 +260,10 @@ export function reboot(state: GameState): Outcome {
     discovered: state.discovered.filter((id) => getModule(id) !== undefined),
     buffs: [],
     anomaly: null,
+    event: null,
     nextIncidentAt: state.time + 120,
     nextAnomalyAt: state.time + 90,
+    nextEventAt: state.time + FIRST_EVENT_AT,
   };
   return { state: bumpStat(next, 'reboots'), events: [{ type: 'reboot', cores: fragments }] };
 }

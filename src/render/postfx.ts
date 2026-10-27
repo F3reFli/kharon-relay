@@ -73,6 +73,7 @@ export class PostFx {
     this.stylize.uniforms.uTint!.value.set(...palette.tint);
     this.stylize.uniforms.uColorize!.value = palette.colorize;
     this.stylize.uniforms.uEdges!.value = settings.edges ? 1 : 0;
+    this.stylize.uniforms.uFlicker!.value = settings.reducedMotion ? 0 : 1;
     this.stylize.enabled = settings.filter === 'ascii' || settings.filter === 'dither';
     this.crtIntensity = settings.filter === 'clean' ? 0 : settings.crt;
     this.crt.enabled = this.crtIntensity > 0 || this.glitch > 0;

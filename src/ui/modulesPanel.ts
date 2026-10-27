@@ -185,6 +185,12 @@ export class ModulesPanel {
     setText(row.eta, eta);
     row.buy.disabled = !affordable;
     toggleClass(row.buy, 'ready', affordable);
+    // Jauge de progression vers le prochain achat (la ressource la plus en retard).
+    const progress = (Object.keys(cost) as ResourceId[]).reduce((worst, k) => {
+      const need = cost[k] ?? 0;
+      return need > 0 ? Math.min(worst, state.resources[k] / need) : worst;
+    }, 1);
+    row.buy.style.setProperty('--afford', unlocked ? Math.min(1, progress).toFixed(3) : '0');
   }
 
   private updateIncident(row: Row, def: ModuleDef, state: GameState, mods: Modifiers): void {

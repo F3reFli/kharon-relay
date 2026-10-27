@@ -1,0 +1,525 @@
+/* ==========================================================================
+   Événements de station, lueurs d'écran, annonces, jauges d'achat (v0.2)
+   ========================================================================== */
+
+.center-stack {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  justify-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(620px, 100%);
+  pointer-events: none !important;
+  z-index: 2;
+}
+
+.center-stack > * {
+  pointer-events: auto;
+}
+
+/* Les notifications s'empilent sous la carte d'événement au lieu de la chevaucher. */
+.toasts {
+  position: static;
+  transform: none;
+  width: min(440px, 100%);
+  pointer-events: none !important;
+}
+
+/* — Carte d'événement — */
+.event-card {
+  --ev: var(--warn);
+  position: relative;
+  width: 100%;
+  padding: 10px 14px 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ev) 14%, transparent), transparent 60%),
+    rgba(3, 6, 11, 0.9);
+  border: 1px solid color-mix(in srgb, var(--ev) 55%, transparent);
+  border-left: 3px solid var(--ev);
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 32px color-mix(in srgb, var(--ev) 22%, transparent),
+    0 10px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.event-card.entering {
+  animation: ev-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.event-card.visual-flare {
+  --ev: #ffa040;
+}
+.event-card.visual-meteors {
+  --ev: #ff7a50;
+}
+.event-card.visual-storm {
+  --ev: #9d8cff;
+}
+.event-card.visual-convoy {
+  --ev: var(--gold);
+}
+.event-card.visual-ghost {
+  --ev: var(--violet);
+}
+.event-card.visual-wreck {
+  --ev: #73d8ff;
+}
+.event-card.visual-resonance {
+  --ev: #ffd060;
+}
+.event-card.visual-blackout {
+  --ev: var(--danger);
+}
+
+.ev-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--ev);
+}
+
+.ev-timer {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-card.urgent .ev-timer {
+  animation: blink 0.5s steps(1) infinite;
+}
+
+.ev-bar {
+  height: 2px;
+  margin: 4px 0 6px;
+  background: color-mix(in srgb, var(--ev) 18%, transparent);
+  overflow: hidden;
+}
+
+.ev-bar-fill {
+  height: 100%;
+  background: var(--ev);
+  box-shadow: 0 0 8px var(--ev);
+  transform-origin: left;
+  transition: transform 0.12s linear;
+}
+
+.ev-title {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.12em;
+  color: var(--ev);
+  text-shadow:
+    0 0 12px color-mix(in srgb, var(--ev) 60%, transparent),
+    0 0 2px var(--ev);
+}
+
+.ev-text {
+  margin: 3px 0 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.ev-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.ev-choice {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 7px;
+  row-gap: 2px;
+  align-items: start;
+  align-content: start;
+  padding: 6px 8px;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid color-mix(in srgb, var(--ev) 35%, transparent);
+  border-radius: var(--radius);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s,
+    transform 0.08s;
+}
+
+.ev-choice:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ev) 16%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--ev) 30%, transparent);
+}
+
+.ev-choice:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ev-choice:disabled {
+  opacity: 0.45;
+}
+
+.ev-key {
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ev);
+  border-radius: 2px;
+  color: var(--ev);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ev-choice-label {
+  align-self: center;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.ev-choice-detail {
+  grid-column: 1 / 3;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.ev-choice-cost {
+  grid-column: 1 / 3;
+  font-size: 10.5px;
+  color: var(--ev);
+}
+
+.ev-choice-cost:empty {
+  display: none;
+}
+
+.ev-choice-cost.blocked {
+  color: var(--danger);
+}
+
+.ev-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ev-goal-bar {
+  height: 10px;
+  border: 1px solid var(--ev);
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.ev-goal-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ev) 0 6px,
+    color-mix(in srgb, var(--ev) 60%, transparent) 6px 8px
+  );
+  box-shadow: 0 0 12px var(--ev);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.1s ease-out;
+}
+
+.ev-goal-text {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ev);
+  animation: goal-pulse 0.9s ease-in-out infinite;
+}
+
+.event-card.resolved {
+  animation: ev-resolve 0.4s ease-out;
+}
+
+.event-card.result-expired {
+  --ev: var(--text-dim);
+}
+
+.event-card.result-goal .ev-title {
+  animation: success-flash 1.2s ease-out;
+}
+
+/* — Lueur des bords de l'écran — */
+.screen-fx {
+  --fx: transparent;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  box-shadow: inset 0 0 180px 40px var(--fx);
+  transition:
+    opacity 1.2s ease,
+    box-shadow 1.2s ease;
+}
+
+.screen-fx.on {
+  opacity: 1;
+}
+
+.fx-incident {
+  --fx: rgba(255, 40, 60, 0.28);
+  animation: fx-pulse 1.8s ease-in-out infinite;
+}
+.fx-flare {
+  --fx: rgba(255, 150, 50, 0.42);
+  animation: fx-pulse 2.6s ease-in-out infinite;
+}
+.fx-meteors {
+  --fx: rgba(255, 110, 60, 0.3);
+}
+.fx-storm {
+  --fx: rgba(130, 110, 255, 0.34);
+  animation: fx-pulse 3.4s ease-in-out infinite;
+}
+.fx-convoy {
+  --fx: rgba(255, 210, 100, 0.18);
+}
+.fx-ghost {
+  --fx: rgba(190, 120, 255, 0.4);
+  animation: fx-ghost 3.2s ease-in-out infinite;
+}
+.fx-wreck {
+  --fx: rgba(110, 220, 255, 0.22);
+}
+.fx-resonance {
+  --fx: rgba(255, 200, 80, 0.45);
+  animation: fx-pulse 0.7s ease-in-out infinite;
+}
+.fx-blackout {
+  --fx: rgba(0, 0, 0, 0.75);
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.6) 100%);
+  animation: fx-flicker 2.3s steps(1) infinite;
+}
+
+/* — Annonce centrale — */
+.banner {
+  position: fixed;
+  top: 32%;
+  left: 50%;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  text-align: center;
+  --bn: var(--ok);
+}
+
+.banner.playing {
+  animation: banner-in 2.6s ease-out forwards;
+}
+
+.banner.tone-gold {
+  --bn: var(--gold);
+}
+.banner.tone-warn {
+  --bn: var(--warn);
+}
+.banner.tone-violet {
+  --bn: var(--violet);
+}
+
+.banner-kicker {
+  font-size: 12px;
+  letter-spacing: 0.45em;
+  color: var(--bn);
+  padding: 2px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--bn) 60%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--bn) 60%, transparent);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.banner-title {
+  font-family: var(--display);
+  font-size: 54px;
+  line-height: 1.05;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow:
+    0 0 18px var(--bn),
+    0 0 4px var(--bn),
+    0 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* — Jauge de progression des achats — */
+.buy-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.buy-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(var(--afford, 0));
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 14%, transparent) 85%,
+    color-mix(in srgb, var(--accent) 30%, transparent)
+  );
+  box-shadow: inset 0 -2px 0 var(--accent-dim);
+  transition: transform 0.35s ease-out;
+  pointer-events: none;
+}
+
+.buy-btn.ready::before {
+  opacity: 0;
+}
+
+.buy-btn > * {
+  position: relative;
+}
+
+/* — Animations — */
+@keyframes ev-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scaleY(0.4);
+    filter: brightness(3);
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+}
+
+@keyframes goal-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes ev-resolve {
+  0% {
+    filter: brightness(2);
+  }
+}
+
+@keyframes fx-pulse {
+  50% {
+    box-shadow: inset 0 0 120px 20px var(--fx);
+  }
+}
+
+@keyframes fx-ghost {
+  0%,
+  100% {
+    box-shadow: inset 0 0 180px 40px var(--fx);
+  }
+  48% {
+    box-shadow: inset 0 0 90px 10px var(--fx);
+  }
+  50% {
+    box-shadow: inset 0 0 260px 80px var(--fx);
+  }
+}
+
+@keyframes fx-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  7% {
+    opacity: 0.55;
+  }
+  9% {
+    opacity: 1;
+  }
+  61% {
+    opacity: 0.7;
+  }
+  62% {
+    opacity: 1;
+  }
+}
+
+@keyframes banner-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scaleX(0.4);
+    filter: blur(6px);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(1.04);
+    filter: none;
+  }
+  16% {
+    transform: translate(-50%, -50%) scaleX(1);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -62%);
+  }
+}
+
+.reduced-motion .screen-fx,
+.reduced-motion .event-card,
+.reduced-motion .banner {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-fx,
+  .event-card,
+  .banner {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 960px) {
+  .center-stack {
+    grid-column: 1 / -1;
+  }
+
+  .banner-title {
+    font-size: 36px;
+  }
+}
+
+/* Écrans peu hauts (portables) : carte plus compacte, dock un peu plus bas. */
+@media (max-height: 800px) {
+  :root {
+    --dock-h: 22vh;
+  }
+
+  .event-card {
+    padding: 7px 11px 9px;
+  }
+
+  .ev-title {
+    font-size: 21px;
+  }
+
+  .ev-text {
+    margin: 2px 0 6px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .ev-choice {
+    padding: 4px 7px;
+  }
+}

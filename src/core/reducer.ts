@@ -4,6 +4,7 @@ import * as act from './actions';
 import { computeModifiers } from './modifiers';
 import { checkAchievements, pipeline, tick } from './simulation';
 import { bumpStat } from './state';
+import { answerEvent } from './stationEvents';
 import type { Action, GameState, Outcome } from './types';
 
 function apply(state: GameState, action: Action): Outcome {
@@ -28,6 +29,8 @@ function apply(state: GameState, action: Action): Outcome {
       return act.saveDraft(state, action.puzzleId, action.code);
     case 'catchAnomaly':
       return act.catchAnomaly(state);
+    case 'answerEvent':
+      return answerEvent(state, action.choice);
     case 'decrypt':
       return act.decrypt(state, action.logId);
     case 'readLog':

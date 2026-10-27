@@ -3,6 +3,7 @@
 import { MODULES } from '../data/modules';
 import { PUZZLES } from '../data/puzzles';
 import { UPGRADES } from '../data/upgrades';
+import { eventCommand } from './cmd-event';
 import { FS_COMMANDS } from './cmd-fs';
 import { MISC_COMMANDS } from './cmd-misc';
 import { STATION_COMMANDS } from './cmd-station';
@@ -33,6 +34,7 @@ const help: Command = {
 export const COMMANDS: readonly Command[] = [
   help,
   ...STATION_COMMANDS,
+  eventCommand,
   ...FS_COMMANDS,
   ...MISC_COMMANDS,
 ];
