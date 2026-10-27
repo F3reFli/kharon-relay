@@ -1,0 +1,190 @@
+import type { AchievementDef } from '../types';
+
+/** Chaque succès débloqué augmente toute la production de 2 %. */
+export const ACHIEVEMENT_BONUS = 0.02;
+
+export const ACHIEVEMENTS: readonly AchievementDef[] = [
+  {
+    id: 'first-pulse',
+    name: 'Signe de vie',
+    description: 'Envoyer une première impulsion.',
+    condition: { kind: 'clicks', count: 1 },
+  },
+  {
+    id: 'pulse-100',
+    name: 'Rythme cardiaque',
+    description: '100 impulsions manuelles.',
+    condition: { kind: 'clicks', count: 100 },
+  },
+  {
+    id: 'pulse-1k',
+    name: 'Défibrillateur',
+    description: '1 000 impulsions manuelles.',
+    condition: { kind: 'clicks', count: 1000 },
+  },
+  {
+    id: 'pulse-10k',
+    name: 'Main de fer',
+    description: '10 000 impulsions manuelles.',
+    condition: { kind: 'clicks', count: 10_000 },
+  },
+  {
+    id: 'crit-1',
+    name: 'Surtension',
+    description: 'Déclencher une impulsion critique.',
+    condition: { kind: 'stat', stat: 'crits', value: 1 },
+  },
+  {
+    id: 'first-module',
+    name: 'Premier circuit',
+    description: 'Construire un banc de condensateurs.',
+    condition: { kind: 'owned', module: 'capacitor', count: 1 },
+  },
+  {
+    id: 'energy-1k',
+    name: 'Lueur',
+    description: 'Produire 1 000 ⚡ au total.',
+    condition: { kind: 'lifetime', resource: 'energy', amount: 1e3 },
+  },
+  {
+    id: 'energy-1m',
+    name: 'Éclairage de secours',
+    description: 'Produire 1 M ⚡ au total.',
+    condition: { kind: 'lifetime', resource: 'energy', amount: 1e6 },
+  },
+  {
+    id: 'energy-1b',
+    name: 'Pleine puissance',
+    description: 'Produire 1 B ⚡ au total.',
+    condition: { kind: 'lifetime', resource: 'energy', amount: 1e9 },
+  },
+  {
+    id: 'energy-1t',
+    name: 'Étoile artificielle',
+    description: 'Produire 1 T ⚡ au total.',
+    condition: { kind: 'lifetime', resource: 'energy', amount: 1e12 },
+  },
+  {
+    id: 'alloy-10k',
+    name: 'Ferrailleur',
+    description: 'Récupérer 10 K ⬡ au total.',
+    condition: { kind: 'lifetime', resource: 'alloy', amount: 1e4 },
+  },
+  {
+    id: 'data-10k',
+    name: 'Archiviste',
+    description: 'Extraire 10 K ◈ au total.',
+    condition: { kind: 'lifetime', resource: 'data', amount: 1e4 },
+  },
+  {
+    id: 'cap-50',
+    name: 'Batterie de batteries',
+    description: 'Posséder 50 bancs de condensateurs.',
+    condition: { kind: 'owned', module: 'capacitor', count: 50 },
+  },
+  {
+    id: 'solar-50',
+    name: 'Héliotrope',
+    description: 'Posséder 50 panneaux solaires.',
+    condition: { kind: 'owned', module: 'solar', count: 50 },
+  },
+  {
+    id: 'drone-50',
+    name: 'Essaim',
+    description: 'Posséder 50 baies de drones.',
+    condition: { kind: 'owned', module: 'drone', count: 50 },
+  },
+  {
+    id: 'debug-1',
+    name: 'Hello, Kharon',
+    description: 'Réparer un firmware en KX-ASM.',
+    condition: { kind: 'solved', count: 1 },
+  },
+  {
+    id: 'debug-5',
+    name: 'Ingénieur de garde',
+    description: 'Réparer 5 firmwares différents.',
+    condition: { kind: 'solved', count: 5 },
+  },
+  {
+    id: 'debug-all',
+    name: 'Ferreira serait fière',
+    description: 'Réparer tous les firmwares.',
+    condition: { kind: 'solved', count: 11 },
+  },
+  {
+    id: 'optimizer',
+    name: 'Optimiseur',
+    description: "Battre le nombre de cycles de référence d'un ticket.",
+    condition: { kind: 'flag', flag: 'optimized' },
+  },
+  {
+    id: 'incident-10',
+    name: 'Pompier',
+    description: 'Résoudre 10 incidents.',
+    condition: { kind: 'stat', stat: 'incidentsResolved', value: 10 },
+  },
+  {
+    id: 'incident-100',
+    name: 'Vétéran',
+    description: 'Résoudre 100 incidents.',
+    condition: { kind: 'stat', stat: 'incidentsResolved', value: 100 },
+  },
+  {
+    id: 'anomaly-1',
+    name: 'Paquet perdu',
+    description: 'Intercepter un paquet de données dérivant.',
+    condition: { kind: 'stat', stat: 'anomalies', value: 1 },
+  },
+  {
+    id: 'anomaly-25',
+    name: "Pêcheur d'octets",
+    description: 'Intercepter 25 paquets dérivants.',
+    condition: { kind: 'stat', stat: 'anomalies', value: 25 },
+  },
+  {
+    id: 'reader',
+    name: 'Lecteur assidu',
+    description: 'Lire 10 journaux de bord.',
+    condition: { kind: 'stat', stat: 'logsRead', value: 10 },
+  },
+  {
+    id: 'reboot-1',
+    name: 'Démarrage à froid',
+    description: 'Effectuer un premier redémarrage.',
+    condition: { kind: 'stat', stat: 'reboots', value: 1 },
+  },
+  {
+    id: 'echo',
+    name: 'Nous sommes le relais',
+    description: "Décoder l'Écho.",
+    condition: { kind: 'flag', flag: 'echo-decoded' },
+  },
+  {
+    id: 'loop',
+    name: 'La boucle',
+    description: "Transmettre l'Écho.",
+    condition: { kind: 'flag', flag: 'echo-sent' },
+  },
+  {
+    id: 'sudo',
+    name: 'Incident signalé',
+    description: 'Tenter une élévation de privilèges.',
+    condition: { kind: 'flag', flag: 'sudo' },
+    hidden: true,
+  },
+  {
+    id: 'rmrf',
+    name: 'Pulsion autodestructrice',
+    description: "Tenter d'effacer la station.",
+    condition: { kind: 'flag', flag: 'rmrf' },
+    hidden: true,
+  },
+  {
+    id: 'earth',
+    name: 'Allô la Terre ?',
+    description: 'Essayer de joindre la Terre.',
+    condition: { kind: 'flag', flag: 'ping-earth' },
+    hidden: true,
+  },
+];

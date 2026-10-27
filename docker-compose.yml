@@ -1,0 +1,18 @@
+services:
+  kharon-relay:
+    build: .
+    image: kharon-relay:latest
+    container_name: kharon-relay
+    ports:
+      - '${KHARON_BIND:-0.0.0.0}:${KHARON_PORT:-8080}:8080'
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 128m
+    # Pour n'exposer le jeu qu'à un reverse proxy local : KHARON_BIND=127.0.0.1

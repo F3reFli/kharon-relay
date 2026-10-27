@@ -1,0 +1,45 @@
+{
+  "budget": 100,
+  "assets": [
+    {
+      "id": "station_hub",
+      "prompt": "Derelict sci-fi space station command module, cylindrical pressurized hull with docking ports, antenna arrays and radiator fins, worn riveted metal panels, hard-surface, game asset",
+      "aiModel": "latest",
+      "targetPolycount": 12000,
+      "texturePrompt": "worn gunmetal hull plates, faded orange hazard stripes, scorch marks, scratched white paint, sci-fi industrial"
+    },
+    {
+      "id": "drone",
+      "prompt": "Small salvage drone for space, compact hard-surface body with two cutting arms and four thrusters, sci-fi, game asset",
+      "aiModel": "meshy-6-lite",
+      "targetPolycount": 3000,
+      "texturePrompt": "scuffed yellow industrial paint, dark metal joints, small glowing orange sensor"
+    },
+    {
+      "id": "relay_dish",
+      "prompt": "Large parabolic deep-space communication dish antenna with central feed horn and support struts, sci-fi, hard-surface, game asset",
+      "aiModel": "meshy-6-lite",
+      "targetPolycount": 6000,
+      "texturePrompt": "weathered white composite dish, rusted steel struts, faded station markings"
+    },
+    {
+      "id": "debris",
+      "prompt": "Twisted chunk of broken spaceship hull plating, jagged torn edges, space debris, game asset",
+      "aiModel": "meshy-6-lite",
+      "targetPolycount": 800
+    },
+    {
+      "id": "cargo_pod",
+      "prompt": "Sci-fi cargo container pod with handles, reinforced corners and hazard markings, hard-surface, game asset",
+      "aiModel": "meshy-6-lite",
+      "targetPolycount": 3000,
+      "texturePrompt": "dented grey cargo container, yellow and black hazard markings, stenciled serial numbers"
+    },
+    {
+      "id": "derelict_probe",
+      "prompt": "Abandoned old space probe with a single solar wing, cracked dish and exposed wiring, sci-fi, game asset",
+      "aiModel": "meshy-6-lite",
+      "targetPolycount": 5000
+    }
+  ]
+}
